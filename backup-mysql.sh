@@ -4,6 +4,8 @@
 MYSQLDUMP_OPTS=/home/backup/conf/mysqldump.opts
 BACKUP_DIR=/home/backup/mysql
 MAX_BACKUPS=14
+S3_BUCKET=ovc-backup
+S3_PREFIX=mysql
 
 error() {
   echo "$@" >&2
@@ -31,4 +33,10 @@ if [ $excess -gt 0 ]; then
 fi
 
 echo Total disk space in bytes occupied by MySQL backups: `du -h "$BACKUP_DIR" | awk '{print $1}'`
+
+echo Syncing to Amazon S3...
+# no --delete here, may as well keep older backups
+s3sync --ssl --recursive "$BACKUP_DIR"/ "$S3_BUCKET":"$S3_PREFIX" \
+  || error "Failed to sync to S3 ($BACKUP_DIR/ $S3_BUCKET:$S3_PREFIX)"
+
 echo Backup complete.

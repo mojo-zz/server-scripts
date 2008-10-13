@@ -4,6 +4,8 @@ SRC_DIR=/var/www/ovcblog/shared/uploads
 BACKUP_DIR=/home/backup/wpuploads
 BACKUP_BASENAME=backup
 MAX_BACKUPS=14
+S3_BUCKET=ovc-backup
+S3_PREFIX=wpuploads
 
 error() {
   echo "$@" >&2
@@ -33,4 +35,9 @@ rsync -a --delete --link-dest="$backup_prefix".1 "$SRC_DIR" "$backup_prefix".0 \
   || error "Unable to create new backup $backup_prefix.0"
 
 echo Total disk space in bytes occupied by wpuploads backups: `du -hs "$BACKUP_DIR" | awk '{print $1}'`
+
+echo Syncing to Amazon S3...
+s3sync --delete --ssl --recursive "$BACKUP_DIR"/ "$S3_BUCKET":"$S3_PREFIX" \
+  || error "Failed to sync to S3 ($BACKUP_DIR/ $S3_BUCKET:$S3_PREFIX)"
+
 echo Backup complete.
