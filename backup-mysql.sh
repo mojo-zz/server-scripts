@@ -30,4 +30,5 @@ if [ $excess -gt 0 ]; then
     || error "Failed to delete $excess oldest backups"
 fi
 
+echo Total disk space in bytes occupied by MySQL backups: `du -h "$BACKUP_DIR" | awk '{print $1}'`
 echo Backup complete.
