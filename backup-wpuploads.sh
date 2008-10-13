@@ -14,30 +14,46 @@ error() {
 
 backup_prefix="$BACKUP_DIR"/"$BACKUP_BASENAME"
 
-echo Rotating backups...
-oldest="$backup_prefix".$[MAX_BACKUPS - 1]
-if [ -d "$oldest" ]; then
-  echo Deleting "$oldest".
-  rm -rf "$oldest" || error "Unable to delete oldest backup $oldest"
+timestamp=`date +%Y%m%d%H%M%S` || error "Failed to compute timestamp"
+newbackup="$backup_prefix"."$timestamp"
+prevbackup=`ls -c "$BACKUP_DIR"/ | head -1`
+prevbackup_full="$BACKUP_DIR"/"$prevbackup"
+
+rsync_opts="-a --delete"
+
+if [ -z "$prevbackup" ]; then
+  echo WARNING: no previous backup found. >&2
+  echo This backup will be a full copy. >&2
+elif [ ! -d "$prevbackup_full" ]; then
+  echo WARNING: previous backup $prevbackup_full not a directory. >&2
+  echo This backup will be a full copy. >&2
+else
+  echo Using hard links from previous backup $prevbackup_full where possible.
+  rsync_opts="$rsync_opts --link-dest=$prevbackup_full"
 fi
 
-working=$[MAX_BACKUPS - 2]
-while [ $working -ge 0 ]; do
-  if [ -d "$backup_prefix".$working ]; then
-    mv "$backup_prefix".$working "$backup_prefix".$[working + 1] \
-      || error "Unable to rename backup $working to " $[working + 1]
-  fi
-  working=$[working - 1]
-done
+rsync $rsync_opts "$SRC_DIR" "$newbackup" \
+  || error "Unable to create new backup $newbackup"
+echo Created new backup "$newbackup".
 
-echo Creating new backup "$backup_prefix".0...
-rsync -a --delete --link-dest="$backup_prefix".1 "$SRC_DIR" "$backup_prefix".0 \
-  || error "Unable to create new backup $backup_prefix.0"
+# delete old backups if there are too many
+current=`find "$BACKUP_DIR" -type d -name "$BACKUP_BASENAME.*" | wc -l` \
+  || error "Failed to check number of current backups"
+excess=$[current - MAX_BACKUPS]
+echo Out of max $MAX_BACKUPS backups we have $current.
+if [ $excess -gt 0 ]; then
+  echo Deleting $excess oldest backups.
+  pushd "$BACKUP_DIR" >/dev/null # shush
+  ls -cr | head -$excess | xargs rm -rf \
+    || { popd >/dev/null; error "Failed to delete $excess oldest backups"; }
+  popd >/dev/null
+fi
 
 echo Total disk space in bytes occupied by wpuploads backups: `du -hs "$BACKUP_DIR" | awk '{print $1}'`
 
 echo Syncing to Amazon S3...
-s3sync --delete --ssl --recursive "$BACKUP_DIR"/ "$S3_BUCKET":"$S3_PREFIX" \
+# no --delete here, may as well keep older backups
+s3sync --ssl --recursive "$BACKUP_DIR"/ "$S3_BUCKET":"$S3_PREFIX" \
   || error "Failed to sync to S3 ($BACKUP_DIR/ $S3_BUCKET:$S3_PREFIX)"
 
 echo Backup complete.
