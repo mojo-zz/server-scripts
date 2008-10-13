@@ -14,8 +14,7 @@ error() {
 
 # create new backup
 umask 0027 || error "Failed to set umask"
-timestamp=`date +%Y%m%d%H%M%S` \
-  || error "Failed to compute timestamp"
+timestamp=`date +%Y%m%d%H%M%S` || error "Failed to compute timestamp"
 newbackup="$BACKUP_DIR"/"$timestamp".sql.gz
 xargs mysqldump <"$MYSQLDUMP_OPTS" | gzip >"$newbackup" \
   || error "Failed to create new backup $newbackup"
