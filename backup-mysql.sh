@@ -27,8 +27,10 @@ excess=$[current - MAX_BACKUPS]
 echo Out of max $MAX_BACKUPS backups we have $current.
 if [ $excess -gt 0 ]; then
   echo Deleting $excess oldest backups.
-  ls -cr "$BACKUP_DIR"/ | head -$excess | xargs rm -f \
-    || error "Failed to delete $excess oldest backups"
+  pushd "$BACKUP_DIR" >/dev/null # shush
+  ls -cr | head -$excess | xargs rm -f \
+    || { popd >/dev/null; error "Failed to delete $excess oldest backups"; }
+  popd >/dev/null
 fi
 
 echo Total disk space in bytes occupied by MySQL backups: `du -h "$BACKUP_DIR" | awk '{print $1}'`
