@@ -3,7 +3,6 @@
 # TODO read these from argv
 MAX_BACKUPS=14
 S3_BUCKET=ovc-backup
-S3_PREFIX=mysql
 
 error() {
   echo "$@" >&2
@@ -15,6 +14,7 @@ mysqldump_opts="${1?First argument must be path to mysqldump options file}"
 test -r "$mysqldump_opts" || error "$mysqldump_opts does not exist or is not readable"
 backup_dir="${2?Second argument must be path to backup directory}"
 test -d "$backup_dir" || error "$backup_dir is not a directory"
+s3_prefix="${3?Third argument must be S3 prefix in which to store backups}"
 
 # create new backup
 umask 0027 || error "Failed to set umask"
@@ -41,7 +41,7 @@ echo Total disk space in bytes occupied by MySQL backups: `du -h "$backup_dir" |
 
 echo Syncing to Amazon S3...
 # no --delete here, may as well keep older backups
-s3sync --ssl --recursive "$backup_dir"/ "$S3_BUCKET":"$S3_PREFIX" \
-  || error "Failed to sync to S3 ($backup_dir/ $S3_BUCKET:$S3_PREFIX)"
+s3sync --ssl --recursive "$backup_dir"/ "$S3_BUCKET":"$s3_prefix" \
+  || error "Failed to sync to S3 ($backup_dir/ $S3_BUCKET:$s3_prefix)"
 
 echo Backup complete.
