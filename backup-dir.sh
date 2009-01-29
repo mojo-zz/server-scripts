@@ -25,6 +25,8 @@ prevbackup_full="$backup_dir"/"$prevbackup"
 
 rsync_opts="-a --delete"
 
+echo Beginning backup of "$src_dir".
+
 if [ -z "$prevbackup" ]; then
   echo WARNING: no previous backup found. >&2
   echo This backup will be a full copy. >&2
@@ -53,10 +55,10 @@ if [ $excess -gt 0 ]; then
   popd >/dev/null
 fi
 
-echo -n Total disk space in bytes occupied by backups of "$src_dir":
+echo -n "Total disk space in bytes occupied by backups of $src_dir: "
 echo    `du -hs "$backup_dir" | awk '{print $1}'`
 
-echo Syncing to Amazon S3...
+echo "Syncing to Amazon S3 ($S3_BUCKET:$s3_prefix)"...
 # no --delete here, may as well keep older backups
 s3sync --ssl --recursive "$backup_dir"/ "$S3_BUCKET":"$s3_prefix" \
   || error "Failed to sync to S3 ($backup_dir/ $S3_BUCKET:$s3_prefix)"
