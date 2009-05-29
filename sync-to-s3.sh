@@ -13,4 +13,4 @@ echo "Syncing $backup_dir to Amazon S3 ($s3_bucket:$s3_prefix)"...
 s3sync --ssl --recursive "$backup_dir"/ "$s3_bucket":"$s3_prefix" \
   || error "Failed to sync to S3 ($backup_dir/ $S3_BUCKET:$s3_prefix)"
 
-echo Backup complete.
+echo "Synced $backup_dir to Amazon S3 ($s3_bucket:$s3_prefix)."
