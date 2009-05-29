@@ -24,24 +24,10 @@ xargs mysqldump <"$mysqldump_opts" | gzip >"$newbackup" \
   || error "Failed to create new backup $newbackup"
 echo Created new backup "$newbackup".
 
-# delete old backups if there are too many
-current=`find "$backup_dir" -type f -name '*.sql.gz' | wc -l` \
-  || error "Failed to check number of current backups"
-excess=$[current - MAX_BACKUPS]
-echo Out of max $MAX_BACKUPS backups we have $current.
-if [ $excess -gt 0 ]; then
-  echo Deleting $excess oldest backups.
-  pushd "$backup_dir" >/dev/null # shush
-  ls -cr | head -$excess | xargs rm -f \
-    || { popd >/dev/null; error "Failed to delete $excess oldest backups"; }
-  popd >/dev/null
-fi
+/usr/local/bin/rotate-backups.sh $MAX_BACKUPS "$backup_dir" "*.sql.gz" f \
+  || error "Rotating backups failed."
 
-echo Total disk space in bytes occupied by MySQL backups: `du -h "$backup_dir" | awk '{print $1}'`
-
-echo Syncing to Amazon S3...
-# no --delete here, may as well keep older backups
-s3sync --ssl --recursive "$backup_dir"/ "$S3_BUCKET":"$s3_prefix" \
-  || error "Failed to sync to S3 ($backup_dir/ $S3_BUCKET:$s3_prefix)"
+/usr/local/bin/sync-to-s3.sh "$S3_BUCKET" "$s3_prefix" "$backup_dir" \
+  || error "Syncing to Amazon S3 failed."
 
 echo Backup complete.
