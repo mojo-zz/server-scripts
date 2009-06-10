@@ -2,7 +2,9 @@
 
 # Installs necessary services and packages to prepare a clean install of Ubuntu
 # Hardy (8.04) to run Rails apps.
-# Note: does not actually install Rails itself, or setup any given app!
+# N.B.: does not actually install Rails itself, or setup any given app!
+# N.B.: not fully automated, will prompt at a few points (e.g. for mysql root
+# password).
 
 error() { echo $@ >&2; exit 1; }
 
