@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Installs necessary services and packages to prepare a clean install of Ubuntu
+# Hardy (8.04) to run Rails apps.
+# Note: does not actually install Rails itself, or setup any given app!
+
+error() { echo $@ >&2; exit 1; }
+
+
+# Extra APT repositories
+
+wget http://apt.brightbox.net/release.asc -O - | sudo apt-key add - \
+  || error "Failed to add Brightbox package signing key"
+echo "deb http://apt.brightbox.net hardy main" > /etc/apt/sources.list.d/brightbox.list \
+  || error "Failed to add Brightbox APT repository"
+echo "deb http://apt.brightbox.net/ hardy rubyee" > /etc/apt/sources.list.d/brightbox-rubyee.list \
+  || error "Failed to add Brightbox Ruby EE repository"
+cat >/etc/apt/sources.list.d/libapache2-mod-xsendfile.list <<APT \
+  || error "Failed to add Apache2 mod-xsendfile repository"
+deb http://ppa.launchpad.net/damokles/ubuntu hardy main
+deb-src http://ppa.launchpad.net/damokles/ubuntu hardy main
+APT
+# N.B. doing things this way actually means we'll get some of Brightbox's
+# Ruby packages for things like libopenssl-ruby1.8, not just libruby1.8 for
+# Ruby EE.  This is probably fine.
+
+apt-get update \
+  || error "apt-get update failed"
+
+
+# APT packages
+
+BASIC_SERVER_PACKAGES="postfix apache2-mpm-worker mysql-server-5.0"
+RAILS_SERVER_PACKAGES="libapache2-mod-passenger"
+RUBY_PACKAGES="libmysqlclient15-dev ruby-full build-essential"
+DEPLOYMENT_PACKAGES="git-core"
+MISC_PACKAGES="imagemagick"
+
+apt-get --assume-yes install $BASIC_SERVER_PACKAGES $RAILS_SERVER_PACKAGES $RUBY_PACKAGES $DEPLOYMENT_PACKAGES $MISC_PACKAGES \
+  || error "Failed to install packages"
+
+# this needs --force-yes because the xsendfile package is unauthenticated
+apt-get --assume-yes --force-yes install libapache2-mod-xsendfile \
+  || error "Failed to install Apache2 mod-xsendfile"
+# enable mod-xsendfile
+a2enmod xsendfile && /etc/init.d/apache2 force-reload \
+  || error "Failed to enable Apache2 mod-xsendfile"
+
+# Rubygems
+
+wget http://rubyforge.org/frs/download.php/57643/rubygems-1.3.4.tgz -O- | tar zxvf - \
+  || error "Failed to download Rubygems"
+pushd rubygems-1.3.4 && ruby setup.rb && ln -s gem1.8 /usr/bin/gem && popd \
+  || { popd; error "Failed to install Rubygems"; }
+
+PASSENGER_GEMS="fastthread"
+RAILS_GEMS="mysql"
+
+gem install --no-rdoc --no-ri $PASSENGER_GEMS $RAILS_GEMS \
+  || error "Failed to install gems"
