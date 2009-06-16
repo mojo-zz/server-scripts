@@ -60,3 +60,4 @@ RAILS_GEMS="mysql"
 
 gem install --no-rdoc --no-ri $PASSENGER_GEMS $RAILS_GEMS \
   || error "Failed to install gems"
+
